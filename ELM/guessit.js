@@ -6204,7 +6204,15 @@ var $author$project$Main$getWordlist = $elm$http$Http$get(
 		expect: $elm$http$Http$expectString($author$project$Main$GotWords),
 		url: 'http://localhost:8000/thousand_words_things_explainer.txt'
 	});
-var $author$project$Main$init = {answer: '', content: '', inputText: '', message: '', randomNum: 1, selectedWord: '', showAnswer: false, word: '', wordList: _List_Nil};
+var $author$project$Main$init = {
+	answer: '',
+	dic: {meanings: _List_Nil, word: ''},
+	inputText: '',
+	message: '',
+	randomNum: 1,
+	selectedWord: '',
+	wordList: _List_Nil
+};
 var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $author$project$Main$subscriptions = function (_v0) {
@@ -6320,6 +6328,76 @@ var $elm$random$Random$generate = F2(
 			$elm$random$Random$Generate(
 				A2($elm$random$Random$map, tagger, generator)));
 	});
+var $author$project$Main$GotJson = function (a) {
+	return {$: 'GotJson', a: a};
+};
+var $elm$json$Json$Decode$decodeString = _Json_runOnString;
+var $elm$http$Http$expectJson = F2(
+	function (toMsg, decoder) {
+		return A2(
+			$elm$http$Http$expectStringResponse,
+			toMsg,
+			$elm$http$Http$resolve(
+				function (string) {
+					return A2(
+						$elm$core$Result$mapError,
+						$elm$json$Json$Decode$errorToString,
+						A2($elm$json$Json$Decode$decodeString, decoder, string));
+				}));
+	});
+var $author$project$Main$Dictionary = F2(
+	function (word, meanings) {
+		return {meanings: meanings, word: word};
+	});
+var $elm$json$Json$Decode$list = _Json_decodeList;
+var $author$project$Main$Meaning = F2(
+	function (partOfSpeech, definitions) {
+		return {definitions: definitions, partOfSpeech: partOfSpeech};
+	});
+var $author$project$Main$Definition = function (definition) {
+	return {definition: definition};
+};
+var $NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$custom = $elm$json$Json$Decode$map2($elm$core$Basics$apR);
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$required = F3(
+	function (key, valDecoder, decoder) {
+		return A2(
+			$NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$custom,
+			A2($elm$json$Json$Decode$field, key, valDecoder),
+			decoder);
+	});
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Main$defDecoder = A3(
+	$NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$required,
+	'definition',
+	$elm$json$Json$Decode$string,
+	$elm$json$Json$Decode$succeed($author$project$Main$Definition));
+var $author$project$Main$meaningDecoder = A3(
+	$NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$required,
+	'definitions',
+	$elm$json$Json$Decode$list($author$project$Main$defDecoder),
+	A3(
+		$NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$required,
+		'partOfSpeech',
+		$elm$json$Json$Decode$string,
+		$elm$json$Json$Decode$succeed($author$project$Main$Meaning)));
+var $author$project$Main$dicDecoder = A3(
+	$NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$required,
+	'meanings',
+	$elm$json$Json$Decode$list($author$project$Main$meaningDecoder),
+	A3(
+		$NoRedInk$elm_json_decode_pipeline$Json$Decode$Pipeline$required,
+		'word',
+		$elm$json$Json$Decode$string,
+		$elm$json$Json$Decode$succeed($author$project$Main$Dictionary)));
+var $author$project$Main$myDecoder = $elm$json$Json$Decode$list($author$project$Main$dicDecoder);
+var $author$project$Main$getJson = function (selectedWord) {
+	return $elm$http$Http$get(
+		{
+			expect: A2($elm$http$Http$expectJson, $author$project$Main$GotJson, $author$project$Main$myDecoder),
+			url: 'https://api.dictionaryapi.dev/api/v2/entries/en/' + selectedWord
+		});
+};
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6365,17 +6443,17 @@ var $author$project$Main$httpErrorToString = function (error) {
 	switch (error.$) {
 		case 'BadUrl':
 			var msg = error.a;
-			return '无效 URL: ' + msg;
+			return 'Invalid URL: ' + msg;
 		case 'Timeout':
-			return '请求超时';
+			return 'Timeout';
 		case 'NetworkError':
-			return '网络错误';
+			return 'Network error';
 		case 'BadStatus':
 			var statusCode = error.a;
-			return '错误状态码: ' + $elm$core$String$fromInt(statusCode);
+			return 'Bad Status code: ' + $elm$core$String$fromInt(statusCode);
 		default:
 			var msg = error.a;
-			return '响应格式错误: ' + msg;
+			return 'Bad body: ' + msg;
 	}
 };
 var $elm$core$Bitwise$and = _Bitwise_and;
@@ -6422,6 +6500,15 @@ var $elm$random$Random$int = F2(
 	});
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $author$project$Main$treat = function (l) {
+	var _v0 = $elm$core$List$head(l);
+	if (_v0.$ === 'Just') {
+		var y = _v0.a;
+		return y;
+	} else {
+		return {meanings: _List_Nil, word: ''};
+	}
+};
 var $elm$core$String$words = _String_words;
 var $author$project$Main$update = F2(
 	function (msg, model) {
@@ -6432,21 +6519,17 @@ var $author$project$Main$update = F2(
 				return _Utils_eq(model.inputText, model.selectedWord) ? _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{message: '你猜对了！'}),
+						{message: 'Yeah you\'re correct ！'}),
 					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{message: '猜错了，请再试一次。'}),
+						{message: 'Wrong, try again !'}),
 					$elm$core$Platform$Cmd$none);
 			case 'ToggleAnswer':
-				return (!model.showAnswer) ? _Utils_Tuple2(
+				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{answer: model.word}),
-					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{answer: ''}),
+						{answer: 'The correct answer is ' + model.selectedWord}),
 					$elm$core$Platform$Cmd$none);
 			case 'UpdateInput':
 				var text = msg.a;
@@ -6473,7 +6556,7 @@ var $author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{
-								message: '错误：' + $author$project$Main$httpErrorToString(error)
+								message: 'error：' + $author$project$Main$httpErrorToString(error)
 							}),
 						$elm$core$Platform$Cmd$none);
 				}
@@ -6491,18 +6574,31 @@ var $author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{randomNum: num, selectedWord: z}),
-						$elm$core$Platform$Cmd$none);
+						$author$project$Main$getJson(z));
 				}
 			default:
-				var selectedWord = A2($author$project$Main$getRandomWord, model.randomNum, model.wordList);
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{selectedWord: selectedWord}),
-					$elm$core$Platform$Cmd$none);
+				var result = msg.a;
+				if (result.$ === 'Ok') {
+					var meaning = result.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								dic: $author$project$Main$treat(meaning)
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var error = result.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								message: 'error：' + $author$project$Main$httpErrorToString(error)
+							}),
+						$elm$core$Platform$Cmd$none);
+				}
 		}
 	});
-var $author$project$Main$SelectRandomWord = {$: 'SelectRandomWord'};
 var $author$project$Main$Submit = {$: 'Submit'};
 var $author$project$Main$ToggleAnswer = {$: 'ToggleAnswer'};
 var $author$project$Main$UpdateInput = function (a) {
@@ -6512,6 +6608,7 @@ var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$html$Html$input = _VirtualDom_node('input');
+var $elm$html$Html$ol = _VirtualDom_node('ol');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
 };
@@ -6542,12 +6639,10 @@ var $elm$html$Html$Events$stopPropagationOn = F2(
 			event,
 			$elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
 	});
-var $elm$json$Json$Decode$field = _Json_decodeField;
 var $elm$json$Json$Decode$at = F2(
 	function (fields, decoder) {
 		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
 	});
-var $elm$json$Json$Decode$string = _Json_decodeString;
 var $elm$html$Html$Events$targetValue = A2(
 	$elm$json$Json$Decode$at,
 	_List_fromArray(
@@ -6571,19 +6666,57 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 			$elm$json$Json$Encode$string(string));
 	});
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
-var $elm$html$Html$li = _VirtualDom_node('li');
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$renderItem = function (item) {
-	return A2(
-		$elm$html$Html$li,
-		_List_Nil,
-		_List_fromArray(
-			[
-				$elm$html$Html$text(item)
-			]));
+var $elm$html$Html$li = _VirtualDom_node('li');
+var $author$project$Main$viewDef = function (def) {
+	var _v0 = def.definition;
+	if (_v0 === '') {
+		return $elm$html$Html$text('pas de def chacal');
+	} else {
+		return $elm$html$Html$text(def.definition);
+	}
 };
-var $elm$html$Html$ul = _VirtualDom_node('ul');
+var $author$project$Main$viewMeaning = function (defs) {
+	if (!defs.b) {
+		return _List_Nil;
+	} else {
+		var definition = defs.a;
+		var rest = defs.b;
+		return A2(
+			$elm$core$List$cons,
+			A2(
+				$elm$html$Html$li,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$author$project$Main$viewDef(definition)
+					])),
+			$author$project$Main$viewMeaning(rest));
+	}
+};
+var $author$project$Main$viewDic = function (meanings) {
+	if (!meanings.b) {
+		return _List_Nil;
+	} else {
+		var meaning = meanings.a;
+		var rest = meanings.b;
+		return A2(
+			$elm$core$List$cons,
+			A2(
+				$elm$html$Html$li,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text(meaning.partOfSpeech),
+						A2(
+						$elm$html$Html$ol,
+						_List_Nil,
+						$author$project$Main$viewMeaning(meaning.definitions))
+					])),
+			$author$project$Main$viewDic(rest));
+	}
+};
 var $author$project$Main$view = function (model) {
 	return A2(
 		$elm$html$Html$div,
@@ -6595,20 +6728,23 @@ var $author$project$Main$view = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('根据提示猜单词')
+						$elm$html$Html$text('Guess it')
 					])),
 				A2(
 				$elm$html$Html$div,
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('提示：这个单词的意思是...' + (model.content + model.selectedWord))
+						A2(
+						$elm$html$Html$ol,
+						_List_Nil,
+						$author$project$Main$viewDic(model.dic.meanings))
 					])),
 				A2(
 				$elm$html$Html$input,
 				_List_fromArray(
 					[
-						$elm$html$Html$Attributes$placeholder('输入你的猜测'),
+						$elm$html$Html$Attributes$placeholder('Please input the correct word: '),
 						$elm$html$Html$Events$onInput($author$project$Main$UpdateInput)
 					]),
 				_List_Nil),
@@ -6620,7 +6756,7 @@ var $author$project$Main$view = function (model) {
 					]),
 				_List_fromArray(
 					[
-						$elm$html$Html$text('提交')
+						$elm$html$Html$text('Submit')
 					])),
 				A2(
 				$elm$html$Html$div,
@@ -6644,75 +6780,7 @@ var $author$project$Main$view = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						model.showAnswer ? A2(
-						$elm$html$Html$div,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text(model.word)
-							])) : $elm$html$Html$text('')
-					])),
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$h1,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								$elm$core$String$fromInt(model.randomNum))
-							]))
-					])),
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Events$onClick($author$project$Main$SelectRandomWord)
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('选择单词')
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								'随机数: ' + $elm$core$String$fromInt(model.randomNum))
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text('选择的单词: ' + model.selectedWord)
-							]))
-					])),
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$h1,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text('单词列表')
-							])),
-						A2(
-						$elm$html$Html$ul,
-						_List_Nil,
-						A2($elm$core$List$map, $author$project$Main$renderItem, model.wordList))
+						$elm$html$Html$text(model.answer)
 					]))
 			]));
 };
