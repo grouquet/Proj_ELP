@@ -1,4 +1,5 @@
 Mini Projet du ELM
+
 Afin de faire fonctionner ce programme, il faut exécuter les commandes suivantes:
 1. elm make guessit.elm --output=guessit.js
 2. elm reactor
