@@ -111,7 +111,7 @@ renderItem item =
 view : Model -> Html Msg
 view model =
     div []
-        [ h1 [] [ text "Guess it" ]
+        [ h1 [] [ text "Guess it!" ]
         , div [] [ ol [](viewDic model.dic.meanings) ]
         , input [ placeholder "Please input the correct word: ", onInput UpdateInput ] []
         , button [ onClick Submit ] [ text "Submit" ]
