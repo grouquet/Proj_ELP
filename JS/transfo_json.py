@@ -1,7 +1,7 @@
 import json
 
 # Path to the original JSON file
-input_file_path = 'C:\\Users\\gabir\\OneDrive\\Documents\\PROJETS-DOC\\JS\\index.json'  # Adjust this path if necessary
+input_file_path = 'C:\\Users\\gabir\\OneDrive\\Documents\\PROJETS-DOC\\ELP\\JS\\liste_mot_no_accents_alternative.json'  # Adjust this path if necessary
 
 # Path for the new JSON file
 output_file_path = 'dictionnaire.json'
