@@ -6728,7 +6728,7 @@ var $author$project$Main$view = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('Guess it')
+						$elm$html$Html$text('Guess it!')
 					])),
 				A2(
 				$elm$html$Html$div,
