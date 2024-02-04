@@ -4,13 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 )
 
 // Fonction principale pour démarrer le serveur
 func main() {
-	portString := ":8000" // Définissez le port sur lequel le serveur doit écouter
+	portString := ":8000"
+	// mise sur écoute
 	ln, err := net.Listen("tcp", portString)
 	if err != nil {
 		fmt.Println(err)
@@ -21,7 +23,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	i := 1 // seulemnt pour voir n° du client
-	for {  //boucle infinie
+	for {
 		conn, err := ln.Accept() //ln.Accept() est bloquant (le programme s'arrête et attend une connection)
 		if err != nil {
 			fmt.Println(err)
@@ -44,7 +46,7 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	reader := bufio.NewReader(conn) //buffer sur la connexion
 	errorOccured := false
 	words := []string{}
-
+	//On va remplir la slice words des mots reçus
 	for {
 		message, err := reader.ReadString(' ')
 		if err != nil {
@@ -58,13 +60,13 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 		}
 		words = append(words, clean_message)
 	}
-	fmt.Printf("les mots reçus sont : %s\n", words)
 	if errorOccured == true {
 		excuse := "désolé ça n'a pas marché"
 		conn.Write([]byte(excuse + "\n"))
 		return
 	}
-	numWorkers := 12 // Nombre arbitraire de travailleurs.
+
+	numWorkers := 2 // Nombre arbitraire de travailleurs.
 	n := len(words)
 	N := n * (n - 1) / 2 // nombre de paire qu'il y aura à comparer
 	tasks := make(chan Task, N)
@@ -72,7 +74,6 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	var wga sync.WaitGroup
 
 	// Assigner les tâches.
-	//Possibilités de faire commencer j à i+1 ??? pour gagner du temps
 	for i := 0; i < n; i++ {
 		for j := i + 1; j < n; j++ {
 			tasks <- Task{i, j, words[i], words[j], 100}
@@ -89,14 +90,25 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 		wga.Wait()
 		close(results)
 	}()
-	var message_retour string
+
+	//Permet d'afficher les résultats de manière ordonnée chez le client.
+	var slice []Task
 	for result := range results {
-		response := fmt.Sprintf("   distances entre %s et %s est : %v   |", result.str1, result.str2, result.distance)
-		message_retour = fmt.Sprintf("%s %s", message_retour, response)
+		slice = append(slice, result) // Ajouter chaque résultat du channel results dans slice
 	}
+	sort.Slice(slice, func(i, j int) bool { //Trier les Task dans slice
+		return slice[i].distance < slice[j].distance
+	})
+
+	var message_retour string
+	for _, sli := range slice {
+		response := fmt.Sprintf("%s / %s  =  %v \n", sli.str1, sli.str2, sli.distance)
+		message_retour += response
+	}
+	message_retour += " $"
 	// Envoyer la réponse
 	conn.Write([]byte(message_retour + "\n"))
-	fmt.Println("c'est envoyé au client !!!")
+	fmt.Println("Réponse envoyée au client\n")
 
 }
 
